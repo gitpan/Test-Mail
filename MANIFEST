@@ -1,0 +1,10 @@
+MANIFEST
+Makefile.PL
+Changes
+
+lib/Test/Mail.pm
+
+testmail.pl
+
+t/tm.t
+t/sample.rfc822
