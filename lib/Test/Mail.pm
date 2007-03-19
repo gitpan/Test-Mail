@@ -1,82 +1,29 @@
-#!/usr/bin/perl -w
+package Test::Mail;
 
-#
-# Kirrily "Skud" Robert <skud@e-smith.com>
-
+use warnings;
 use strict;
 
-package Test::Mail;
 use Carp;
 use Mail::Header;
-use Test::More 'no_plan';
 
 require Exporter;
-use vars qw($VERSION);
-$VERSION = '0.03';
-
-sub new {
-    shift;
-    my (%args) = @_;
-    my $self = \%args;
-
-    bless $self;
-    return $self;
-}
-
-sub accept {
-    my ($self) = @_;
-
-    $self->{header} = new Mail::Header \*STDIN, Modify => 0, MailFrom => 'IGNORE';
-    $self->{header}->unfold();          # Recombine multi-line headers
-
-    {
-        # Slurp in the message body in one fell swoop
-        local $/;
-        undef $/;
-        $self->{body} = <STDIN>;
-    }
-    
-    my $sub = $self->{header}->get("X-Test-Mail:");
-    my $msgid = $self->{header}->get("Message-ID:");
-    chomp ($sub, $msgid);
-
-    open LOG, ">>$self->{logfile}"
-        or croak "Can't open $self->{logfile}: $!";
-
-    print LOG "\n# Test results for $sub for $msgid\n";
-    print LOG "# ", scalar localtime, "\n";
-
-    my ($package) = caller;
-
-    *Test::Simple::TESTOUT = \*LOG;
-    *Test::Simple::TESTERR = \*LOG;
-    *Test::More::TESTERR   = \*LOG;
-    eval qq( 
-        package $package;  
-        use Test::More 'no_plan'; 
-        &${package}::$sub; 
-    );
-}
-
-sub header {
-    my ($self) = @_;
-    return $self->{header};
-}
-
-sub body {
-    my ($self) = @_;
-    return $self->{body};
-}
-
-=pod
 
 =head1 NAME
 
 Test::Mail - Test framework for email applications
 
+=head1 VERSION
+
+Version 0.05
+
+=cut
+
+our $VERSION = '0.05';
+
 =head1 SYNOPSIS
 
-    use Test::Mail 
+
+    use Test::Mail
     my $tm = Test::Mail->new( logfile => $logfile );
     $tm->accept();
     sub first_test { }
@@ -91,7 +38,7 @@ receive email.
 A typical example of an email application might send a notification to a
 certain email address, setting certain headers in certain ways and
 having certain content in the body of the email.  It would be nice to be
-able to test these things automatically, however most email applications 
+able to test these things automatically, however most email applications
 are currently tested by visual inspection of the email received.
 
 Test::Mail allows you to automate the testing of email applications by
@@ -125,7 +72,7 @@ look something like this:
     # test results for birthday_notification for <msgid1234@example.com>
     ok 1 - From address check
     ok 2 - Email body check
-   
+
     # test results for support_request for <msgid5678@example.com>
     ok 1 - To address check
     not ok 2 - Subject line
@@ -138,7 +85,7 @@ conventions, counting only occurs on a per-email basis
 =head2 Sending incoming mail to Test::Mail
 
 To call Test::Mail, simply put a suitable filter in your .procmailrc,
-Mail::Audit script, or whatever you use to filter your email.  Here's 
+Mail::Audit script, or whatever you use to filter your email.  Here's
 how I'd do it with Mail::Audit:
 
     if ($mail->{obj}->head->get("X-Test-Mail")) {
@@ -161,39 +108,157 @@ anyone has any good ideas:
 
 =over 4
 
-=item * 
+=item *
 
 Sending output somewhere more useful than a logfile
 
-=item * 
+=item *
 
 Integrating into a real "test suite" that's friendly to Test::Harness
 
-=item * 
+=item *
 
 Handling MIME in a suitable way
 
 =back
 
-=cut
+=head1 METHODS
 
-use strict;
-package Test::Mail;
-use Mail::Address;
-use Mail::Header;
-use Carp;
+=head2 new()
 
+Constructor method.  Takes a hash of arguments.  The only current argument is
+"logfile" which is the file to which test logs will be sent.
 
 =cut
 
-=head1 SEE ALSO
+sub new {
+    shift;
+    my (%args) = @_;
+    my $self = \%args;
 
-L<Test::More>, L<Mail::Header>, L<Mail::Audit>
+    bless $self;
+    return $self;
+}
+
+=head2 accept()
+
+Accept a single email and test it.  Doesn't take any args.
+
+This will run the email through whatever subroutine is described in the
+"X-Test-Mail" header.
+
+=cut
+
+sub accept {
+    my ($self) = @_;
+
+    $self->{header} = new Mail::Header \*STDIN, Modify => 0, MailFrom => 'IGNORE';
+    $self->{header}->unfold();          # Recombine multi-line headers
+
+    {
+        # Slurp in the message body in one fell swoop
+        local $/;
+        undef $/;
+        $self->{body} = <STDIN>;
+    }
+
+    my $sub = $self->{header}->get("X-Test-Mail:");
+    my $msgid = $self->{header}->get("Message-ID:");
+    chomp ($sub, $msgid);
+
+    open LOG, ">>$self->{logfile}"
+        or croak "Can't open $self->{logfile}: $!";
+
+    print LOG "\n# Test results for $sub for $msgid\n";
+    print LOG "# ", scalar localtime, "\n";
+
+    my ($package) = caller;
+
+    *Test::Simple::TESTOUT = \*LOG;
+    *Test::Simple::TESTERR = \*LOG;
+    *Test::More::TESTERR   = \*LOG;
+    eval qq(
+        package $package; 
+        use Test::More 'no_plan';
+        &${package}::$sub;
+    );
+}
+
+=head2 header()
+
+Convenience accessor method for the header of the email. Returns a Mail::Header
+object.
+
+=cut
+
+sub header {
+    my ($self) = @_;
+    return $self->{header};
+}
+
+=head2 body()
+
+Convenience accessor method for the body of the email.  Returns a plain text
+string.
+
+=cut
+
+sub body {
+    my ($self) = @_;
+    return $self->{body};
+}
+
+return 1;
 
 =head1 AUTHOR
 
-Kirrily "Skud" Robert <skud@cpan.org>
+Kirrily Robert, C<< <skud at cpan.org> >>
+
+=head1 BUGS
+
+Please report any bugs or feature requests to
+C<bug-test-mail at rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Test-Mail>.
+I will be notified, and then you'll automatically be notified of progress on
+your bug as I make changes.
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Test::Mail
+
+You can also look for information at:
+
+=over 4
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/Test-Mail>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/Test-Mail>
+
+=item * RT: CPAN's request tracker
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Test-Mail>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/Test-Mail>
+
+=back
+
+=head1 ACKNOWLEDGEMENTS
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2007 Kirrily Robert, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
 
 =cut
 
-return "FALSE"; # true value ;)
+1; # End of Test::Mail

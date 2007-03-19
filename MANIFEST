@@ -1,10 +1,13 @@
-MANIFEST
-Makefile.PL
+Build.PL
 Changes
-
+MANIFEST
+META.yml # Will be created by "make dist"
+README
 lib/Test/Mail.pm
-
-testmail.pl
-
-t/tm.t
+t/00-load.t
+t/boilerplate.t
+t/pod-coverage.t
+t/pod.t
+t/test-mail.t
 t/sample.rfc822
+examples/newsletter.pl
