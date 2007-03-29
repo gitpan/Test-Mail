@@ -9,6 +9,7 @@ my $builder = Module::Build->new(
     dist_version_from   => 'lib/Test/Mail.pm',
     build_requires => {
         'Test::More' => 0,
+        'Mail::Header' => 0,
     },
     add_to_cleanup      => [ 'Test-Mail-*' ],
 );
